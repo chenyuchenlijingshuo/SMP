@@ -111,28 +111,27 @@ static void receive_json_async(std::shared_ptr<tcp::socket> socket, ReadJSONComp
 
 static void receive_packet_async(std::shared_ptr<tcp::socket> socket, PacketInfo info, ReadAVPacketComplete callback) {
   int size = info.size;
-  char* packet_data = (char*) av_malloc(size * sizeof(char)); // leak
+  char* packet_data = (char*) av_malloc(size * sizeof(char));
   boost::asio::async_read(*socket, boost::asio::buffer(packet_data, size),
   [packet_data, size, callback, info](const boost::system::error_code& ec, std::size_t bytes_transferred) {
-    static auto av_packet_deleter = [](AVPacket* pkt) {
-      av_packet_free(&pkt);
-    };
-    std::shared_ptr<AVPacket> packet(av_packet_alloc(), av_packet_deleter);
-    av_packet_from_data(packet.get(), (uint8_t*)packet_data, size);
-    packet->pts = info.pts;
-    packet->dts = info.dts;
-    packet->stream_index = info.stream_index;
-    packet->duration = info.duration;
-    packet->pos = info.pos;
-    
-    spdlog::debug("receive_packet_async");
-    logAVPacket(packet.get());
-
-    callback(packet, ec, bytes_transferred);
-    spdlog::debug("read a AVPacket.");
+      static auto av_packet_deleter = [](AVPacket* pkt) {
+          av_packet_free(&pkt);
+      };
+      std::shared_ptr<AVPacket> packet(av_packet_alloc(), av_packet_deleter);
+      av_packet_from_data(packet.get(), (uint8_t*)packet_data, size);
+  
+      // 释放 packet_data 内存
+      av_free(packet_data);
+  
+      packet->pts = info.pts;
+      packet->dts = info.dts;
+      packet->stream_index = info.stream_index;
+      packet->duration = info.duration;
+      packet->pos = info.pos;
+  
+      callback(packet, ec, bytes_transferred);
   });
-}
-
+  
 static void send_packet_async(std::shared_ptr<tcp::socket> socket, const std::shared_ptr<AVPacket>& pkt, WriteAVPacketComplete callback) {
   spdlog::debug("send_packet_async");
   logAVPacket(pkt.get());

@@ -51,6 +51,7 @@ void StreamPullSession::PopStreamData(std::shared_ptr<PullerData> stream_data) {
         // remove self from pusher
         pusher_->UnregisterPuller(shared_from_this());
       } else {
+        spdlog::info("Successfully sent JSON. Bytes Transferred: {}", sz);
         send_packet_async(socket_, data, [=](const boost::system::error_code& ec, std::size_t) {
           if (ec) {
             spdlog::error("Error: {} - {}", ec.value(), ec.message()); // Log the error information
